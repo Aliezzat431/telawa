@@ -88,6 +88,7 @@ export default function Home() {
   // Fetch ayahs for the selected surah
   useEffect(() => {
     if (surah) {
+      setLoading(true);
       axios
         .get(`https://api.alquran.cloud/v1/surah/${surah}/ar`)
         .then((res) => {
@@ -95,10 +96,19 @@ export default function Home() {
             setAyahs(res.data.data.ayahs);
             setAyahStart(1); // Reset ayahStart to 1
             setAyahEnd(res.data.data.ayahs.length); // Set ayahEnd to last ayah
+            setCurrentAudioIndex(0); // Reset audio index
+            setAudioUrls([]); // Clear audio URLs
+            setDurations([]); // Clear durations
+            setCurrentTime(0); // Reset current time
+            setTotalDuration(0); // Reset total duration
+            setIsPlaying(false); // Stop playback
           }
         })
         .catch((error) => {
           console.error("Error fetching ayahs:", error);
+        })
+        .finally(() => {
+          setLoading(false);
         });
     }
   }, [surah]);
@@ -262,164 +272,159 @@ export default function Home() {
 
   return (
     <>
+      <Head>
+        <title>Telawa</title>
+      </Head>
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <h1>Quran Recitation</h1>
+        </div>
 
-
-    <Head>
-   <title>telawa</title>
-      
-    </Head>
-    
-     <div className={styles.container}>
-      <div className={styles.header}>
-        <h1>Quran Recitation</h1>
-      </div>
-
-      <div className={styles.mainContent}>
-        <div className={styles.controls}>
-          {/* Mushaf Type Dropdown */}
-          <div className={styles.selectContainer}>
-            <label>Mushaf Type: </label>
-            <select value={mushafType} onChange={(e) => setMushafType(e.target.value)}>
-              {mushafTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Reciter Dropdown */}
-          <div className={styles.selectContainer}>
-            <label>Reciter: </label>
-            <select value={reciter} onChange={(e) => setReciter(e.target.value)}>
-              {Object.keys(recitersMapping).map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Surah Dropdown */}
-          <div className={styles.selectContainer}>
-            <label>Surah: </label>
-            <select value={surah} onChange={(e) => setSurah(Number(e.target.value))}>
-              {surahs.map((s) => (
-                <option key={s.number} value={s.number}>
-                  {s.number}. {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Start Ayah Dropdown */}
-          <div className={styles.selectContainer}>
-            <label>Start Ayah: </label>
-            <select
-              value={ayahStart}
-              onChange={(e) => setAyahStart(Number(e.target.value))}
-              disabled={!ayahs.length}
-            >
-              {ayahs
-                .filter((ayah) => ayah.number <= ayahEnd) // Ensure ayahStart <= ayahEnd
-                .map((ayah) => (
-                  <option key={ayah.number} value={ayah.number}>
-                    Ayah {ayah.number}
+        <div className={styles.mainContent}>
+          <div className={styles.controls}>
+            {/* Mushaf Type Dropdown */}
+            <div className={styles.selectContainer}>
+              <label>Mushaf Type: </label>
+              <select value={mushafType} onChange={(e) => setMushafType(e.target.value)}>
+                {mushafTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
                   </option>
                 ))}
-            </select>
-          </div>
+              </select>
+            </div>
 
-          {/* End Ayah Dropdown */}
-          <div className={styles.selectContainer}>
-            <label>End Ayah: </label>
-            <select
-              value={ayahEnd}
-              onChange={(e) => setAyahEnd(Number(e.target.value))}
-              disabled={!ayahs.length}
-            >
-              {ayahs
-                .filter((ayah) => ayah.number >= ayahStart) // Ensure ayahEnd >= ayahStart
-                .map((ayah) => (
-                  <option key={ayah.number} value={ayah.number}>
-                    Ayah {ayah.number}
+            {/* Reciter Dropdown */}
+            <div className={styles.selectContainer}>
+              <label>Reciter: </label>
+              <select value={reciter} onChange={(e) => setReciter(e.target.value)}>
+                {Object.keys(recitersMapping).map((name) => (
+                  <option key={name} value={name}>
+                    {name}
                   </option>
                 ))}
-            </select>
-          </div>
+              </select>
+            </div>
 
-          <button onClick={fetchAudio} className={styles.fetchButton} disabled={loading}>
-            {loading ? "Loading..." : "Fetch Audio"}
-          </button>
+            {/* Surah Dropdown */}
+            <div className={styles.selectContainer}>
+              <label>Surah: </label>
+              <select value={surah} onChange={(e) => setSurah(Number(e.target.value))}>
+                {surahs.map((s) => (
+                  <option key={s.number} value={s.number}>
+                    {s.number}. {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          {/* Audio Player */}
-          <div className={styles.audioPlayerContainer}>
-            <button onClick={handlePlayPause} className={styles.playButton}>
-              {isPlaying ? (
-                <div className={styles.stopIcon}></div>
-              ) : (
-                <div className={styles.playIcon}></div>
-              )}
+            {/* Start Ayah Dropdown */}
+            <div className={styles.selectContainer}>
+              <label>Start Ayah: </label>
+              <select
+                value={ayahStart}
+                onChange={(e) => setAyahStart(Number(e.target.value))}
+                disabled={!ayahs.length}
+              >
+                {ayahs
+                  .filter((ayah) => ayah.number <= ayahEnd) // Ensure ayahStart <= ayahEnd
+                  .map((ayah) => (
+                    <option key={ayah.number} value={ayah.number}>
+                      Ayah {ayah.number}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {/* End Ayah Dropdown */}
+            <div className={styles.selectContainer}>
+              <label>End Ayah: </label>
+              <select
+                value={ayahEnd}
+                onChange={(e) => setAyahEnd(Number(e.target.value))}
+                disabled={!ayahs.length}
+              >
+                {ayahs
+                  .filter((ayah) => ayah.number >= ayahStart) // Ensure ayahEnd >= ayahStart
+                  .map((ayah) => (
+                    <option key={ayah.number} value={ayah.number}>
+                      Ayah {ayah.number}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <button onClick={fetchAudio} className={styles.fetchButton} disabled={loading}>
+              {loading ? "Loading..." : "Fetch Audio"}
             </button>
-            <div className={styles.progressContainer}>
-              <div className={styles.progressTime}>
-                {formatTime(overallCurrentTime)} / {formatTime(totalDuration)}
-              </div>
-              <div className={styles.progressBar}>
-                <div
-                  className={styles.progressFill}
-                  style={{ width: `${progressPercent}%` }}
-                ></div>
+
+            {/* Audio Player */}
+            <div className={styles.audioPlayerContainer}>
+              <button onClick={handlePlayPause} className={styles.playButton}>
+                {isPlaying ? (
+                  <div className={styles.stopIcon}></div>
+                ) : (
+                  <div className={styles.playIcon}></div>
+                )}
+              </button>
+              <div className={styles.progressContainer}>
+                <div className={styles.progressTime}>
+                  {formatTime(overallCurrentTime)} / {formatTime(totalDuration)}
+                </div>
+                <div className={styles.progressBar}>
+                  <div
+                    className={styles.progressFill}
+                    style={{ width: `${progressPercent}%` }}
+                  ></div>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Quran Image */}
+          <div className={styles.mushafBox}>
+            <img src={backgroundImageUrl} alt="Quran Page" />
+          </div>
+
+          {/* Ayah List */}
+          <div className={styles.ayahList}>
+            {ayahs
+              .filter((ayah) => ayah.number >= ayahStart && ayah.number <= ayahEnd)
+              .map((ayah) => (
+                <div key={ayah.number} className={styles.ayahItem}>
+                  {ayah.text}
+                </div>
+              ))}
+          </div>
         </div>
 
-        {/* Quran Image */}
-        <div className={styles.mushafBox}>
-          <img src={backgroundImageUrl} alt="Quran Page" />
+        {/* Footer */}
+        <div className={styles.footer}>
+          <div className={styles.bottomLeft}>
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Flag_of_Palestine.svg/1280px-Flag_of_Palestine.svg.png"
+              alt="علم فلسطين"
+              className={styles.flagImage}
+            />
+          </div>
+          <div className={styles.bottomCenter}>
+            <p>لاتنسونا من صالح دعائكم</p>
+          </div>
+          <div className={styles.bottomRight}>
+            <p>كل الدعم لأهل فلسطين</p>
+          </div>
         </div>
 
-        {/* Ayah List */}
-        <div className={styles.ayahList}>
-          {ayahs
-            .filter((ayah) => ayah.number >= ayahStart && ayah.number <= ayahEnd)
-            .map((ayah) => (
-              <div key={ayah.number} className={styles.ayahItem}>
-                {ayah.text}
-              </div>
-            ))}
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div className={styles.footer}>
-        <div className={styles.bottomLeft}>
-          <img
-            src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/00/Flag_of_Palestine.svg/1280px-Flag_of_Palestine.svg.png"
-            alt="علم فلسطين"
-            className={styles.flagImage}
+        {/* Hidden audio element for playback */}
+        {audioUrls[currentAudioIndex] && (
+          <audio
+            ref={audioRef}
+            onTimeUpdate={handleTimeUpdate}
+            onEnded={handleEnded}
+            style={{ display: "none" }}
           />
-        </div>
-        <div className={styles.bottomCenter}>
-          <p>لاتنسونا من صالح دعائكم</p>
-        </div>
-        <div className={styles.bottomRight}>
-          <p>كل الدعم لأهل فلسطين</p>
-        </div>
+        )}
       </div>
-
-      {/* Hidden audio element for playback */}
-      {audioUrls[currentAudioIndex] && (
-        <audio
-          ref={audioRef}
-          onTimeUpdate={handleTimeUpdate}
-          onEnded={handleEnded}
-          style={{ display: "none" }}
-        />
-      )}
-    </div>
     </>
-   
   );
 }
